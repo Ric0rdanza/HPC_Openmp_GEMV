@@ -227,15 +227,16 @@ int main(int argc, char* argv[])
     // START COMPUTING 
 
     // Testing naive approach
-    /*
+    
     for (int i = 0; i < R; i++) {
         gevm_2dim(matrix, vector, result);
         swap(&vector, &result);
     }
-    */
+    
 
 
     // Testing block parallel approach
+    /*
     int* pattern = (int*)malloc(sizeof(int) * N_THREADS);
     allocate_matrix(N_THREADS, pattern);
 
@@ -247,6 +248,7 @@ int main(int argc, char* argv[])
     }
 
     free(pattern);
+    */
     //print_vector(result);
     // Stop timing
     end = omp_get_wtime();
