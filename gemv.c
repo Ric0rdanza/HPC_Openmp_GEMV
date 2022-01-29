@@ -103,7 +103,7 @@ void gevm_2dim(double** matrix, double* vector, double* result) {
         result[i] = 0;
         int j = 0;
         for (j = 0; j < N; j++) {
-            result[i] += vector[j] * matrix[j][i];
+            result[i] += vector[j] * matrix[i][j];
         }
     }
 }
