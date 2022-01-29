@@ -13,5 +13,5 @@ module load GCC/9.3.0
 
 echo "OpenMP parallelism"
 export OMP_NUM_THREADS=4
-./hpc-mpi
+mpirun ./hpc-mpi
 echo "DONE "
