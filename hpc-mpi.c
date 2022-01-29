@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
-#define N 3
+#define N 4
 #define R 1
 
 double** initialize_matrix(int cols) {
@@ -88,17 +88,22 @@ int main(int argc, char *argv[]) {
         //initialize variables
         // double* matrix = initialize_matrix();
         //print_matrix(matrix);
-        vector = initialize_vector();
         start = MPI_Wtime();
-
     }
-    MPI_Bcast(&vector,N,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
 
+    vector = initialize_vector();
     double** matrix = initialize_matrix(cols);
     double* result = (double*)malloc(sizeof(double) * cols);
+    double *final_res = NULL;
     
     for(int r = 0; r < R ; r++){
+
+        printf("\n----------------0,%d\n",rank);
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Bcast(vector, N ,MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
+        print_vector(vector);
+        printf("\n----------------,%d\n",rank);
         int i = 0;
     #pragma omp parallel for
         for (i = 0; i < cols; i++) {
@@ -108,27 +113,31 @@ int main(int argc, char *argv[]) {
                 result[i] += matrix[j][i] * vector[j];
             }
         }
-        if(r != R -1){
-            swap(&vector, &result);
+        printf("\n----------------1,%d\n",rank);
+        destroy_vector(final_res);
+        final_res = (double*)malloc(sizeof(double) * N);
+
+        printf("\n----------------2,%d\n",rank);
+        MPI_Gather(result,cols,MPI_DOUBLE,final_res, cols,MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("\n----------------3,%d\n",rank);
+        if(r != R -1 && isMaster){
+            swap(&vector, &final_res);
         }
+
+        printf("\n----------------4,%d\n",rank);
     }
     
-
-    double *final_res = NULL;
-
     if(isMaster){
-        final_res = (double*)malloc(sizeof(double) * N);
-        MPI_Gather(result,cols,MPI_DOUBLE,final_res,cols,MPI_DOUBLE,0,MPI_COMM_WORLD);
         const double finish = MPI_Wtime();
         printf("Processor %d has finished. This took %.1f seconds\n", rank, finish-start);
-        print_vector(result);
-    }else{
-        MPI_Gather(result,cols,MPI_DOUBLE,final_res,cols,MPI_DOUBLE,0,MPI_COMM_WORLD);
+        print_vector(final_res);
     }
     destroy_matrix(matrix);
     destroy_vector(vector);
     destroy_vector(result);
-    MPI_Barrier(MPI_COMM_WORLD);
+    destroy_vector(final_res);
     printf("Processor %d has finished\n", rank);
     MPI_Finalize();
 
