@@ -8,14 +8,14 @@
 #define N 4
 #define R 1
 
-double** initialize_matrix(int cols) {
+double** initialize_matrix(int cols,int rank) {
     double** matrix = (double**)malloc(sizeof(double) * N);
     for(int i = 0;i<N;i++){
         matrix[i] = (double*)malloc(sizeof(double) * cols);
     }
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < cols; j++) {
-            matrix[i][j] = (double)i * N + (double)j + 1.0;
+            matrix[i][j] = (double)(i) * N + (double)j + 1.0 + (rank)*cols;
         }
     }
     return matrix;
@@ -66,44 +66,40 @@ int main(int argc, char *argv[]) {
 
     int rank;
     int size;
-    double start;
+
     /* Start up MPI */
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    int cols = N;
-    if (cols > size){
+    int cols = 0;
+    if (N > size){
         cols = N/size;
-
-        if(N % size < rank){
-            cols++;
-        }   
+        if(rank < N % size && N % size != 0)
+            cols+=1;
+    }else{
+        if(rank < N)
+            cols = 1;
     }
-    
+        
+    // printf("\n-------%d-----%d\n",rank,cols);
     printf("Running as processor %d\n", rank);
     bool isMaster = rank == 0;
-    double* vector;
-    if(isMaster){
-        //initialize variables
-        // double* matrix = initialize_matrix();
-        //print_matrix(matrix);
-        start = MPI_Wtime();
-    }
-
-    vector = initialize_vector();
-    double** matrix = initialize_matrix(cols);
+    
+    double start = MPI_Wtime();
+    double* vector = initialize_vector();
+    double** matrix = initialize_matrix(cols,rank);
     double* result = (double*)malloc(sizeof(double) * cols);
-    double *final_res = NULL;
+    double *final_res;
     
     for(int r = 0; r < R ; r++){
 
-        printf("\n----------------0,%d\n",rank);
+        // printf("\n----------------0,%d\n",rank);
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Bcast(vector, N ,MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
-        print_vector(vector);
-        printf("\n----------------,%d\n",rank);
+        // print_vector(vector);
+        // printf("\n----------------,%d\n",rank);
         int i = 0;
     #pragma omp parallel for
         for (i = 0; i < cols; i++) {
@@ -113,31 +109,30 @@ int main(int argc, char *argv[]) {
                 result[i] += matrix[j][i] * vector[j];
             }
         }
-        printf("\n----------------1,%d\n",rank);
-        destroy_vector(final_res);
-        final_res = (double*)malloc(sizeof(double) * N);
-
-        printf("\n----------------2,%d\n",rank);
+        // printf("\n----------------1,%d\n",rank);
+        if(r == 0 && isMaster){
+            final_res = (double*)malloc(sizeof(double) * N);
+        }
+        // printf("\n----------------2,%d\n",rank);
         MPI_Gather(result,cols,MPI_DOUBLE,final_res, cols,MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
 
-        printf("\n----------------3,%d\n",rank);
+        // printf("\n----------------3,%d\n",rank);
         if(r != R -1 && isMaster){
             swap(&vector, &final_res);
+            // destroy_vector(final_res);
         }
-
-        printf("\n----------------4,%d\n",rank);
     }
     
-    if(isMaster){
-        const double finish = MPI_Wtime();
-        printf("Processor %d has finished. This took %.1f seconds\n", rank, finish-start);
-        print_vector(final_res);
-    }
+
+    double finish = MPI_Wtime();
+    printf("Processor %d has finished. This took %.1f seconds\n", rank, finish-start);
+
     destroy_matrix(matrix);
+
     destroy_vector(vector);
+
     destroy_vector(result);
-    destroy_vector(final_res);
     printf("Processor %d has finished\n", rank);
     MPI_Finalize();
 
