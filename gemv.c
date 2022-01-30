@@ -1,4 +1,3 @@
-#define N 47000
 #define R 100
 
 #include <omp.h>
@@ -8,15 +7,17 @@
 
 // Used to save number of threads
 int N_THREADS;
+__int64 N = 47000;
 
 // Save matrix in 1-dimension vector
 double* initialize_matrix() {
     double* matrix = (double*)malloc(sizeof(double) * N * N);
-    if (matrix == NULL) {
-        printf("Jesus");
-    }
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
+    __int64 i = 0;
+#pragma omp parallel for
+    for (i = 0; i < N; i++) {
+        for (__int64 j = 0; j < N; j++) {
+            __int64 x = i * N + j;
+            //*(matrix + x) = (double)(rand() % 10);
             matrix[i * N + j] = (double)(rand() % 10);
         }
     }
@@ -79,12 +80,12 @@ void print_vector(double* vector) {
 // @ vector: Input vector
 // @ result: Save output vector
 void gevm(double* matrix, double* vector, double* result) {
-    int i = 0;
-    //omp_set_num_threads(16);
+    __int64 i = 0;
+    omp_set_num_threads(16);
 #pragma omp parallel for
     for (i = 0; i < N; i+=1) {
         result[i] = 0;
-        int j = 0;
+        __int64 j = 0;
         for (j = 0; j < N; j++) {
             result[i] += matrix[i * N + j] * vector[j];
         }
@@ -97,7 +98,7 @@ void gevm(double* matrix, double* vector, double* result) {
 // @ result: Save output vector
 void gevm_2dim(double** matrix, double* vector, double* result) {
     int i = 0;
-    //omp_set_num_threads(16);
+    omp_set_num_threads(16);
 #pragma omp parallel for
     for (i = 0; i < N; i++) {
         result[i] = 0;
@@ -197,7 +198,8 @@ void destroy_vector(double* vector) {
 int main(int argc, char* argv[])
 {
     //This is going to set the number of threads
-    N_THREADS = omp_get_num_procs();
+    //N_THREADS = omp_get_num_procs();
+    N_THREADS = 16;
     /*
     //initialize variables
     double* matrix = initialize_matrix();
@@ -206,7 +208,14 @@ int main(int argc, char* argv[])
     double* result = (double*)malloc(sizeof(double) * N);
     */
 
-    double** matrix = initialize_matrix_2dim();
+    int* a = (int*)malloc(sizeof(int) * 5);
+    for (int i = 0; i < 5; i++) {
+        a[i] = i + 1;
+    }
+    long x = 2;
+    printf("%d\n", *(a + 2));
+    double* matrix = initialize_matrix();
+    //double** matrix = initialize_matrix_2dim();
     double* vector = initialize_vector();
     double* result = (double*)malloc(sizeof(double) * N);
 
@@ -229,14 +238,13 @@ int main(int argc, char* argv[])
     // Testing naive approach
     
     for (int i = 0; i < R; i++) {
-        gevm_2dim(matrix, vector, result);
+        gevm(matrix, vector, result);
         swap(&vector, &result);
     }
     
 
-
-    // Testing block parallel approach
     /*
+    // Testing block parallel approach
     int* pattern = (int*)malloc(sizeof(int) * N_THREADS);
     allocate_matrix(N_THREADS, pattern);
 
@@ -258,7 +266,7 @@ int main(int argc, char* argv[])
     // Print result
     printf("obtained in %f seconds\n", end - start);
 
-    destroy_matrix(matrix);
+    destroy_vector(matrix);
     destroy_vector(vector);
     destroy_vector(result);
 }
